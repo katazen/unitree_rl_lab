@@ -10,6 +10,7 @@
 #include "isaaclab/assets/articulation/articulation.h"
 #include "isaaclab/algorithms/algorithms.h"
 #include <iostream>
+#include <fstream>
 #include "isaaclab/utils/utils.h"
 
 namespace isaaclab
@@ -54,6 +55,11 @@ public:
         robot->update();
         action_manager->reset();
         observation_manager->reset();
+
+        debug_csv_.open("debug_log.csv");
+        debug_csv_ << "step,type,name,dim";
+        for(int i = 0; i < 1000; ++i) debug_csv_ << ",v" << i;
+        debug_csv_ << "\n";
     }
 
     void step()
@@ -63,6 +69,25 @@ public:
         auto obs = observation_manager->compute();
         auto action = alg->act(obs);
         action_manager->process_action(action);
+
+        if(episode_length <= 100) {
+            for(const auto& [name, data] : obs) {
+                debug_csv_ << episode_length << ",obs," << name << "," << data.size();
+                for(const auto& v : data) debug_csv_ << "," << v;
+                debug_csv_ << "\n";
+            }
+            debug_csv_ << episode_length << ",act_raw,," << action.size();
+            for(const auto& v : action) debug_csv_ << "," << v;
+            debug_csv_ << "\n";
+            auto processed = action_manager->processed_actions();
+            debug_csv_ << episode_length << ",act_processed,," << processed.size();
+            for(const auto& v : processed) debug_csv_ << "," << v;
+            debug_csv_ << "\n";
+            debug_csv_.flush();
+        } else if(debug_csv_.is_open()) {
+            debug_csv_.close();
+            spdlog::info("Debug log saved to debug_log.csv");
+        }
     }
 
     float step_dt;
@@ -75,6 +100,9 @@ public:
     std::unique_ptr<Algorithms> alg;
     long episode_length = 0;
     float global_phase = 0.0f;
+
+private:
+    std::ofstream debug_csv_;
 };
 
 };

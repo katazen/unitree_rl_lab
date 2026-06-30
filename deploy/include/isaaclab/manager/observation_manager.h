@@ -94,13 +94,23 @@ public:
 protected:
     void _prapare_terms()
     {
-        // check whether have multiple input
-        bool only_one_input = this->cfg.begin()->second["params"].IsDefined(); // trick to check
+        if(this->cfg["use_gym_history"].IsDefined()) {
+            use_gym_history = this->cfg["use_gym_history"].as<bool>();
+        }
+
+        // Find first non-scalar entry to check format
+        auto first_obs = this->cfg.begin();
+        while(first_obs != this->cfg.end() && first_obs->second.IsScalar()) {
+            ++first_obs;
+        }
+
+        bool only_one_input = (first_obs != this->cfg.end()) && first_obs->second["params"].IsDefined();
         if(only_one_input) {
-            group_obs_term_cfgs_["obs"] = _prepare_group_terms(this->cfg); // default group name
+            group_obs_term_cfgs_["obs"] = _prepare_group_terms(this->cfg);
         } else {
             for(auto group = this->cfg.begin(); group != this->cfg.end(); ++group)
             {
+                if(group->second.IsScalar()) continue;
                 auto group_name = group->first.as<std::string>();
                 group_obs_term_cfgs_[group_name] = _prepare_group_terms(group->second);
             }

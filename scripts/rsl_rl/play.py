@@ -56,7 +56,10 @@ import isaaclab_tasks  # noqa: F401
 from isaaclab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from isaaclab.utils.assets import retrieve_file_path
 from isaaclab.utils.dict import print_dict
-from isaaclab.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
+try:
+    from isaaclab.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
+except ModuleNotFoundError:
+    get_published_pretrained_checkpoint = None
 from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper, export_policy_as_jit, export_policy_as_onnx
 from isaaclab_tasks.utils import get_checkpoint_path
 
@@ -130,12 +133,14 @@ def main():
     policy = runner.get_inference_policy(device=env.unwrapped.device)
 
     # extract the neural network module
-    # we do this in a try-except to maintain backwards compatibility.
-    try:
-        # version 2.3 onwards
+    if hasattr(runner.alg, "actor"):
+        # rsl-rl >= 5.0
+        policy_nn = runner.alg.actor
+    elif hasattr(runner.alg, "policy"):
+        # rsl-rl 2.3 ~ 4.x
         policy_nn = runner.alg.policy
-    except AttributeError:
-        # version 2.2 and below
+    else:
+        # rsl-rl <= 2.2
         policy_nn = runner.alg.actor_critic
 
     # extract the normalizer
@@ -148,8 +153,24 @@ def main():
 
     # export policy to onnx/jit
     export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
-    export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.pt")
-    export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.onnx")
+    os.makedirs(export_model_dir, exist_ok=True)
+    if hasattr(policy_nn, "as_jit"):
+        # rsl-rl >= 5.0
+        jit_model = torch.jit.script(policy_nn.as_jit())
+        jit_path = os.path.join(export_model_dir, "policy.pt")
+        jit_model.save(jit_path)
+        print(f"[INFO] Exported JIT policy to: {jit_path}")
+        onnx_model = policy_nn.as_onnx(verbose=False)
+        onnx_path = os.path.join(export_model_dir, "policy.onnx")
+        dummy_input = torch.zeros(1, onnx_model.input_size, device="cpu")
+        torch.onnx.export(
+            onnx_model.cpu(), dummy_input, onnx_path, opset_version=11,
+            input_names=["obs"], output_names=["actions"],
+        )
+        print(f"[INFO] Exported ONNX policy to: {onnx_path}")
+    else:
+        export_policy_as_jit(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.pt")
+        export_policy_as_onnx(policy_nn, normalizer=normalizer, path=export_model_dir, filename="policy.onnx")
 
     dt = env.unwrapped.step_dt
 

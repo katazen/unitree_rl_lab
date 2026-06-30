@@ -300,7 +300,7 @@ UNITREE_G1_23DOF_CFG = UnitreeArticulationCfg(
     #     asset_path=f"{UNITREE_ROS_DIR}/robots/g1_description/g1_23dof_rev_1_0.urdf",
     # ),
     spawn=UnitreeUsdFileCfg(
-        usd_path=f"{UNITREE_MODEL_DIR}/G1/23dof/usd/g1_23dof_rev_1_0/g1_23dof_rev_1_0.usd",
+        usd_path=f"/home/woan/workspace/TienKung-Lab/legged_lab/assets/g1/g1_23dof_rev_1_0/g1_23dof_rev_1_0.usd",
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.8),
@@ -308,12 +308,8 @@ UNITREE_G1_23DOF_CFG = UnitreeArticulationCfg(
             ".*_hip_pitch_joint": -0.1,
             ".*_knee_joint": 0.3,
             ".*_ankle_pitch_joint": -0.2,
-            ".*_shoulder_pitch_joint": 0.3,
-            "left_shoulder_roll_joint": 0.25,
-            "right_shoulder_roll_joint": -0.25,
-            ".*_elbow_joint": 0.97,
-            "left_wrist_roll_joint": 0.15,
-            "right_wrist_roll_joint": -0.15,
+            "left_shoulder_yaw_joint": 1.4,
+            "right_shoulder_yaw_joint": -1.4
         },
         joint_vel={".*": 0.0},
     ),
